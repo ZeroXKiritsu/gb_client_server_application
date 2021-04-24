@@ -16,12 +16,12 @@ PRESENCE = {
     'type': 'status',
     'user': {
         'account_name': '',
-        'status': "Yep, I am here!"
+        'status': 'Yep, I am here!'
     }
 }
 
 MESSAGE = {
-    'action': "msg",
+    'action': 'msg',
     'time': str(TIME),
     'to': None,
     'message': None
