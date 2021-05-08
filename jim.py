@@ -16,7 +16,7 @@ PRESENCE = {
     'type': 'status',
     'user': {
         'account_name': '',
-        'status': 'Yep, I am here!'
+        'status': ''
     }
 }
 

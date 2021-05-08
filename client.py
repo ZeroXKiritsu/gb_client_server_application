@@ -1,19 +1,19 @@
 import logging
+import select
 import chat
 import jim
-import client_log_config
 
 logger = logging.getLogger('chat.client')
 
 if __name__ == '__main__':
     logger.debug('App started')
-    client_name = input('input name: ')
 
     parser = chat.create_parser()
     namespace = parser.parse_args()
 
-    sock = chat.get_client_socket(namespace.addr, namespace.port)
+    client_name = input('input name: ')
 
+    sock = chat.get_client_socket(namespace.addr, namespace.port)
     serv_addr = sock.getpeername()
     start_info = f'Connected to server: {serv_addr[0]}:{serv_addr[1]}'
     print(start_info)
@@ -22,33 +22,43 @@ if __name__ == '__main__':
     jim.PRESENCE['user']['account_name'] = client_name
     try:
         chat.send_data(sock, jim.PRESENCE)
-        logger.info(f'Presence sended to {serv_addr} : {jim.PRESENCE}')
     except ConnectionResetError as e:
         logger.error(e)
         sock.close()
         exit(1)
 
     while True:
-        try:
-            data = chat.get_data(sock)
-            logger.info(f'Data received from {serv_addr} : {data}')
-        except ConnectionResetError as e:
-            logger.error(e)
-            break
-
-        if data['response'] != '200':
-            break
-
-        msg = input('input message ("exit" for quit): ')
-        jim.MESSAGE['message'] = msg
+        r_list = []
 
         try:
-            chat.send_data(sock, jim.MESSAGE)
-            logger.info(f'Data sended to {serv_addr} : {jim.MESSAGE}')
-        except ConnectionResetError as e:
-            logger.error(e)
-            break
+            r_list, w_list, e_list = select.select([sock], [], [], 1)
+        except Exception as e:
+            pass
 
-    logger.debug('App ending')
+        if sock in r_list:
+            try:
+                data = chat.get_data(sock)
+            except ConnectionResetError as e:
+                logger.error(e)
+                break
+
+            if data['response'] != '200':
+                logger.debug('App ending')
+                break
+
+            if 'messages' in data:
+                for message in data['messages']:
+                    print(f'{message["time"]} - {message["from"]}: {message["message"]}')
+
+        else:
+            msg = input('input message ("exit" for quit): ')
+            if msg:
+                jim.MESSAGE['message'] = msg
+
+                try:
+                    chat.send_data(sock, jim.MESSAGE)
+                except ConnectionResetError as e:
+                    logger.error(e)
+                    break
 
     sock.close()
