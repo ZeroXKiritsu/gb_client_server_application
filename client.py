@@ -1,9 +1,43 @@
+import sys
+import time
 import logging
+import multiprocessing
 import select
 import chat
 import jim
 
 logger = logging.getLogger('chat.client')
+
+def send(sock):
+    while True:
+        msg = input('Введите сообщение ("exit" для выхода): ')
+
+        if msg:
+            print(msg)
+            jim.MESSAGE['message'] = msg
+
+            try:
+                chat.send_data(sock, jim.MESSAGE)
+            except ConnectionResetError as e:
+                logger.error(e)
+                break
+
+
+def receive(sock):
+    while True:
+        try:
+            data = chat.get_data(sock)
+        except ConnectionResetError as e:
+            logger.error(e)
+            break
+
+        if data['response'] != '200':
+            logger.debug('App ending')
+            break
+
+        if 'messages' in data:
+            for message in data['messages']:
+                sys.stdout.write(f'{message["time"]} - {message["from"]}: {message["message"]}')
 
 if __name__ == '__main__':
     logger.debug('App started')
@@ -11,7 +45,7 @@ if __name__ == '__main__':
     parser = chat.create_parser()
     namespace = parser.parse_args()
 
-    client_name = input('input name: ')
+    client_name = input('Введите имя: ')
 
     sock = chat.get_client_socket(namespace.addr, namespace.port)
     serv_addr = sock.getpeername()
@@ -27,38 +61,15 @@ if __name__ == '__main__':
         sock.close()
         exit(1)
 
-    while True:
-        r_list = []
+    p_send = multiprocessing.Process(target=send, args=(sock,))
+    p_receive = multiprocessing.Process(target=receive, args=(sock,))
 
-        try:
-            r_list, w_list, e_list = select.select([sock], [], [], 1)
-        except Exception as e:
-            pass
+    p_send.start()
+    p_receive.start()
 
-        if sock in r_list:
-            try:
-                data = chat.get_data(sock)
-            except ConnectionResetError as e:
-                logger.error(e)
-                break
+    if not p_send.is_alive() or not p_receive.is_alive():
+        exit(1)
 
-            if data['response'] != '200':
-                logger.debug('App ending')
-                break
-
-            if 'messages' in data:
-                for message in data['messages']:
-                    print(f'{message["time"]} - {message["from"]}: {message["message"]}')
-
-        else:
-            msg = input('input message ("exit" for quit): ')
-            if msg:
-                jim.MESSAGE['message'] = msg
-
-                try:
-                    chat.send_data(sock, jim.MESSAGE)
-                except ConnectionResetError as e:
-                    logger.error(e)
-                    break
-
+    p_send.join()
+    p_receive.join()
     sock.close()

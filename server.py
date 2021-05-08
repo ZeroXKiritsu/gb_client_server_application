@@ -36,14 +36,14 @@ if __name__ == '__main__':
             clients.append(client)
             clients_info[client] = client_info
         finally:
-            r_list = []
-            w_list = []
+            r = []
+            w = []
             try:
-                r_list, w_list, e_list = select.select(clients, clients, [], 0)
+                r, w, e = select.select(clients, clients, [], 0)
             except Exception as e:
                 pass
 
-            for s_client in r_list:
+            for s_client in r:
                 try:
                     data_in = chat.get_data(s_client)
                 except ConnectionResetError as e:
@@ -72,7 +72,7 @@ if __name__ == '__main__':
             for s_client in clients:
                 clients_info[s_client]['in_messages'].extend(messages)
 
-            for s_client in w_list:
+            for s_client in w:
                 if 'data_out' in clients_info[s_client]:
                     data_out = clients_info[s_client]['data_out']
                     data_out['messages'] = clients_info[s_client]['in_messages']

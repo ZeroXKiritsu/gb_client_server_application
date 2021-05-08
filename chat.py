@@ -8,6 +8,7 @@ from functools import wraps
 ADDRESS = 'localhost'
 PORT = 7777
 CONNECTIONS = 10
+TIMEOUT = 0.5
 
 server_logger = logging.getLogger('chat.server')
 client_logger = logging.getLogger('chat.client')
@@ -28,6 +29,7 @@ def get_server_socket(addr, port):
     s = socket.socket()
     s.bind((addr, port))
     s.listen(CONNECTIONS)
+    s.settimeout(TIMEOUT)
     return s
 
 
@@ -45,7 +47,7 @@ def send_data(recipient, data):
 
 @log
 def get_data(sender):
-    return json.loads(sender.recv(1024).decode("utf-8"))
+    return json.loads(sender.recv(1048576).decode("utf-8"))
 
 
 def create_parser():
